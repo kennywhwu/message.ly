@@ -1,19 +1,25 @@
 /** User class for message.ly */
 const db = require('../db');
 const bcrypt = require('bcrypt');
-const BCRYPT_WORK_ROUNDS = require('../config');
+const { BCRYPT_WORK_ROUNDS } = require('../config');
 
 /** User of the site. */
 
 class User {
-  static _404Error(results) {
+  static _404UserError(results) {
     if (results.rows.length === 0) {
       let error = new Error(`User does not exist.`);
       error.status = 404;
       throw error;
     }
   }
-
+  static _404MessageError(results) {
+    if (results.rows.length === 0) {
+      let error = new Error(`User has no messages.`);
+      error.status = 404;
+      throw error;
+    }
+  }
   /** register new user -- returns
    *    {username, password, first_name, last_name, phone}
    */
@@ -21,7 +27,6 @@ class User {
   static async register({ username, password, first_name, last_name, phone }) {
     //Hash password
     const hashedPassword = await bcrypt.hash(password, BCRYPT_WORK_ROUNDS);
-
     //Create and insert into db
     let newUser = await db.query(
       `INSERT INTO users (username, password, first_name, last_name, phone, join_at)
@@ -29,7 +34,7 @@ class User {
       RETURNING username, password, first_name, last_name, phone`,
       [username, hashedPassword, first_name, last_name, phone]
     );
-    this._404Error(newUser);
+    this._404UserError(newUser);
     return newUser.rows[0];
   }
 
@@ -40,7 +45,7 @@ class User {
       `SELECT password FROM users WHERE username = $1`,
       [username]
     );
-    this._404Error(result);
+    this._404UserError(result);
     const user = result.rows[0];
 
     return user && (await bcrypt.compare(password, user.password));
@@ -62,10 +67,11 @@ class User {
    * [{username, first_name, last_name}, ...] */
 
   static async all() {
-    return await db.query(
+    let users = await db.query(
       `SELECT username, first_name, last_name
       FROM users`
     );
+    return users.rows;
   }
 
   /** Get: get user by username
@@ -82,12 +88,13 @@ class User {
       `SELECT username, first_name, last_name, phone, join_at, last_login_at
       FROM users
       WHERE username = $1
-      RETURNING username, first_name, last_name, phone, join_at, last_login_at
       `,
       [username]
     );
-    this._404Error(getUser);
-    return getUser;
+
+    console.log(`DOES THIS WORK ${getUser}`);
+    this._404UserError(getUser);
+    return getUser.rows[0];
   }
 
   /** Return messages from this user.
@@ -116,9 +123,10 @@ class User {
 
     [messages, userSent] = await Promise.all([messages, userSent]);
 
-    this._404Error(messages);
-    this._404Error(userSent);
+    this._404MessageError(messages);
+    this._404MessageError(userSent);
 
+    //TODO: Get rid of the extra lines of code and chain rows with map
     let userSentArr = userSent.rows;
     let messagesArr = messages.rows;
 
@@ -170,8 +178,8 @@ class User {
 
     [messages, userReceived] = await Promise.all([messages, userReceived]);
 
-    this._404Error(messages);
-    this._404Error(userReceived);
+    this._404MessageError(messages);
+    this._404MessageError(userReceived);
 
     let userReceivedArr = userReceived.rows;
     let messagesArr = messages.rows;

@@ -1,6 +1,8 @@
 /** Message class for message.ly */
 
 const db = require('../db');
+const { ACCOUNT_SID, AUTH_TOKEN } = require('../config');
+const client = require('twilio')(ACCOUNT_SID, AUTH_TOKEN);
 
 /** Message on the site. */
 
@@ -21,7 +23,7 @@ class Message {
     let newMessage = await db.query(
       `INSERT INTO messages (from_username, to_username, body, sent_at)
         VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
-        RETURNING from_username, to_username, body, sent_at`,
+        RETURNING id, from_username, to_username, body, sent_at`,
       [from_username, to_username, body]
     );
     this._404Error(newMessage);
@@ -31,12 +33,14 @@ class Message {
   /** Update read_at for message */
 
   static async markRead(id) {
-    return await db.query(
+    let read = await db.query(
       `UPDATE messages
       SET read_at = CURRENT_TIMESTAMP
-      WHERE id = $1`,
+      WHERE id = $1
+      RETURNING id, read_at, to_username`,
       [id]
     );
+    return read.rows[0];
   }
 
   /** Get: get message by id
@@ -51,13 +55,12 @@ class Message {
       `SELECT id, from_username, to_username, body, sent_at, read_at
       FROM messages
       WHERE id = $1
-      RETURNING id, from_username, to_username, body, sent_at, read_at
       `,
       [id]
     );
     let toUser = db.query(
       `SELECT username, first_name, last_name, phone
-      FROM messages JOIN users ON messages.to_user = users.username
+      FROM messages JOIN users ON messages.to_username = users.username
       WHERE messages.id = $1
       `,
       [id]
@@ -65,7 +68,7 @@ class Message {
 
     let fromUser = db.query(
       `SELECT username, first_name, last_name, phone
-      FROM messages JOIN users ON messages.from_user = users.username
+      FROM messages JOIN users ON messages.from_username = users.username
       WHERE messages.id = $1
       `,
       [id]
@@ -82,40 +85,68 @@ class Message {
     this._404Error(fromUser);
 
     //TODO: Get rid of the extra lines of code and chain rows with map
-    let toUserArr = toUser.rows;
-    let fromUserArr = fromUser.rows;
-    let getMessagesArr = getMessage.rows;
+    let toUserObj = toUser.rows[0];
+    let fromUserObj = fromUser.rows[0];
+    let getMessagesObj = getMessage.rows[0];
 
-    let toUserObject = toUserArr.map(val => {
-      return {
-        username: val.username,
-        first_name: val.first_name,
-        last_name: val.last_name,
-        phone: val.phone
-      };
-    });
+    let { body, sent_at, read_at } = getMessagesObj;
 
-    let fromUserObject = fromUserArr.map(val => {
-      return {
-        username: val.username,
-        first_name: val.first_name,
-        last_name: val.last_name,
-        phone: val.phone
-      };
-    });
+    let finalMessagesObj = {
+      id,
+      from_user: fromUserObj,
+      to_user: toUserObj,
+      body,
+      sent_at,
+      read_at
+    };
+    return finalMessagesObj;
+  }
 
-    let getMessagesObject = getMessagesArr.map(val => {
-      return {
-        id: val.id,
-        from_user: fromUserObject,
-        to_user: toUserObject,
-        body: val.body,
-        sent_at: val.sent_at,
-        read_at: val.read_at
-      };
-    });
+  static async createSMS({ from_username, to_username, body }) {
+    //Create and insert into db
+    let message = await this.create({ from_username, to_username, body });
+    console.log(message.id);
+    let smsMessage = await db.query(
+      `SELECT ufrom.phone as from_phone,
+              uto.phone as to_phone,
+              m.body
+        FROM messages m
+        JOIN users ufrom
+          ON m.from_username = ufrom.username
+        JOIN users uto
+          ON m.to_username = uto.username
+        WHERE m.id = $1
+      `,
+      [message.id]
+    );
+    console.log('smsMessage ', smsMessage.rows[0]);
+    this._404Error(smsMessage);
+    client.messages
+      .create({
+        from: `+19783102885`,
+        body: smsMessage.rows[0].body,
+        to: `+1${smsMessage.rows[0].to_phone}`
+      })
+      .then(message =>
+        console.log(message.sid)
+        })
+      )
+      .done();
 
-    return getMessagesObject;
+    // axios.post(
+    //   `https://api.twilio.com/2010-04-01/Accounts/${ACCOUNT_SID}/Messages.json`,
+    //   res => {
+    //     return res.json({ message });
+    //   }
+    // );
+    return smsMessage.rows[0];
+  }
+
+  static async sendSMS({ from_phone, to_phone, body }) {
+    client.messages
+      .create({ from: `+${from_phone}`, body, to: `+${to_phone}` })
+      .then(message => console.log(message.sid))
+      .done();
   }
 }
 
