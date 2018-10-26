@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<form id = "login-form">
+  <div class="form-group">
+    <label for="username">Username: </label><input type="text" for="username" id="username" class="form-control">
+    <label for="password">Password: </label><input type="text" for="password" id="password" class="form-control">
+  </div>
+  <button type="submit" class="btn btn-primary">Login</button>
+</form>
+
+{% endblock %}

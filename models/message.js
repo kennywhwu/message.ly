@@ -1,7 +1,7 @@
 /** Message class for message.ly */
 
 const db = require('../db');
-const { ACCOUNT_SID, AUTH_TOKEN } = require('../config');
+const { ACCOUNT_SID, AUTH_TOKEN, TWILIO_PHONE } = require('../config');
 const client = require('twilio')(ACCOUNT_SID, AUTH_TOKEN);
 
 /** Message on the site. */
@@ -40,6 +40,7 @@ class Message {
       RETURNING id, read_at, to_username`,
       [id]
     );
+    this._404Error(read);
     return read.rows[0];
   }
 
@@ -105,7 +106,6 @@ class Message {
   static async createSMS({ from_username, to_username, body }) {
     //Create and insert into db
     let message = await this.create({ from_username, to_username, body });
-    console.log(message.id);
     let smsMessage = await db.query(
       `SELECT ufrom.phone as from_phone,
               uto.phone as to_phone,
@@ -119,34 +119,18 @@ class Message {
       `,
       [message.id]
     );
-    console.log('smsMessage ', smsMessage.rows[0]);
     this._404Error(smsMessage);
     client.messages
       .create({
-        from: `+19783102885`,
+        from: TWILIO_PHONE,
         body: smsMessage.rows[0].body,
-        to: `+1${smsMessage.rows[0].to_phone}`
+        to: smsMessage.rows[0].to_phone
+        // Need to productionalize server before status callback url can be used
+        // statusCallback: 'http://localhost:3000/messages/smsstatus'
       })
-      .then(message =>
-        console.log(message.sid)
-        })
-      )
+      .then(message => console.log(message.sid, message))
       .done();
-
-    // axios.post(
-    //   `https://api.twilio.com/2010-04-01/Accounts/${ACCOUNT_SID}/Messages.json`,
-    //   res => {
-    //     return res.json({ message });
-    //   }
-    // );
     return smsMessage.rows[0];
-  }
-
-  static async sendSMS({ from_phone, to_phone, body }) {
-    client.messages
-      .create({ from: `+${from_phone}`, body, to: `+${to_phone}` })
-      .then(message => console.log(message.sid))
-      .done();
   }
 }
 

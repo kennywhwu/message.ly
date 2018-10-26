@@ -20,11 +20,45 @@ class User {
       throw error;
     }
   }
+
+  // NOT USEFUL WHEN NOT INSTANTIATING OBJECT
+  /* methods for setting/getting phone number */
+
+  // set phone(val) {
+  //   let phoneStr = '';
+  //   let digits = '0123456789';
+  //   for (let i = 0; i < val.length; i++) {
+  //     if (digits.includes(val[i])) {
+  //       phoneStr += val[i];
+  //     }
+  //   }
+  //   this._phone = `+1${phoneStr}`;
+  // }
+
+  // get phone() {
+  //   return this._phone;
+  // }
+
+  // Convert any format of phone number to digits and add country code
+  // '(123)456-7890)' => '+11234567890'
+  static convertPhone(phoneInput) {
+    let phoneStr = '';
+    let digits = '0123456789';
+    for (let i = 0; i < phoneInput.length; i++) {
+      if (digits.includes(phoneInput[i])) {
+        phoneStr += phoneInput[i];
+      }
+    }
+    return `+1${phoneStr}`;
+  }
+
   /** register new user -- returns
    *    {username, password, first_name, last_name, phone}
    */
 
   static async register({ username, password, first_name, last_name, phone }) {
+    //Convert phone number
+    const convertedPhone = this.convertPhone(phone);
     //Hash password
     const hashedPassword = await bcrypt.hash(password, BCRYPT_WORK_ROUNDS);
     //Create and insert into db
@@ -32,7 +66,7 @@ class User {
       `INSERT INTO users (username, password, first_name, last_name, phone, join_at)
       VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
       RETURNING username, password, first_name, last_name, phone`,
-      [username, hashedPassword, first_name, last_name, phone]
+      [username, hashedPassword, first_name, last_name, convertedPhone]
     );
     this._404UserError(newUser);
     return newUser.rows[0];
@@ -54,12 +88,14 @@ class User {
   /** Update last_login_at for user */
 
   static async updateLoginTimestamp(username) {
-    return await db.query(
+    let login_at = await db.query(
       `UPDATE users
       SET last_login_at = CURRENT_TIMESTAMP
       WHERE username = $1`,
       [username]
     );
+    return;
+
     //TODO: Do we want to return anything from this function even if it isn't required.
   }
 
@@ -68,7 +104,7 @@ class User {
 
   static async all() {
     let users = await db.query(
-      `SELECT username, first_name, last_name
+      `SELECT username, first_name, last_name, phone
       FROM users`
     );
     return users.rows;
@@ -91,8 +127,6 @@ class User {
       `,
       [username]
     );
-
-    console.log(`DOES THIS WORK ${getUser}`);
     this._404UserError(getUser);
     return getUser.rows[0];
   }

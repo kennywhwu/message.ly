@@ -8,10 +8,12 @@ const SECRET_KEY = process.env.SECRET_KEY;
 const ACCOUNT_SID = process.env.ACCOUNT_SID;
 const AUTH_TOKEN = process.env.AUTH_TOKEN;
 const BCRYPT_WORK_ROUNDS = 10;
+const TWILIO_PHONE = process.env.TWILIO_PHONE;
 
 module.exports = {
   SECRET_KEY,
   BCRYPT_WORK_ROUNDS,
   ACCOUNT_SID,
-  AUTH_TOKEN
+  AUTH_TOKEN,
+  TWILIO_PHONE
 };

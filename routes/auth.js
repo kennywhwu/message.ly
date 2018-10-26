@@ -26,6 +26,22 @@ router.post('/login', async function(req, res, next) {
   }
 });
 
+router.get('/register', async function(req, res, next) {
+  try {
+    return res.render('users/register.html');
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.get('/login', async function(req, res, next) {
+  try {
+    return res.render('users/login.html');
+  } catch (err) {
+    return next(err);
+  }
+});
+
 /** POST /register - register user: registers, logs in, and returns token.
  *
  * The JWT payload hould be {username}
@@ -36,8 +52,7 @@ router.post('/login', async function(req, res, next) {
  */
 router.post('/register', async function(req, res, next) {
   try {
-    let userInputObject = req.body;
-    let { username } = await User.register(userInputObject);
+    let { username } = await User.register(req.body);
     let token = jwt.sign({ username }, SECRET_KEY, { expiresIn: 24 * 60 * 60 });
 
     User.updateLoginTimestamp(username);

@@ -4,7 +4,6 @@ const Message = require('../models/message');
 const jwt = require('jsonwebtoken');
 const { SECRET_KEY } = require('../config');
 const { ensureLoggedIn } = require('../middleware/auth');
-const { ACCOUNT_SID, AUTH_TOKEN } = require('../config');
 const axios = require('axios');
 
 /** GET /:id - get detail of message.

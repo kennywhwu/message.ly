@@ -2,6 +2,6 @@
 
 const app = require('./app');
 
-app.listen(3000, function() {
-  console.log('Listening on 3000');
+app.listen(3001, function() {
+  console.log('Listening on 3001');
 });

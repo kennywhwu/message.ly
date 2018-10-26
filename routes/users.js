@@ -1,8 +1,6 @@
 const express = require('express');
 const router = new express.Router();
 const User = require('../models/user');
-const jwt = require('jsonwebtoken');
-const { SECRET_KEY } = require('../config');
 const { ensureCorrectUser, ensureLoggedIn } = require('../middleware/auth');
 
 /** GET / - get list of users.
@@ -13,6 +11,7 @@ const { ensureCorrectUser, ensureLoggedIn } = require('../middleware/auth');
 router.get('/', ensureLoggedIn, async function(req, res, next) {
   try {
     let users = await User.all();
+    console.log(User.phone);
     return res.json({ users });
   } catch (err) {
     return next(err);
